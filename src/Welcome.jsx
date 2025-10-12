@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { auth, db } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
 
 function Welcome() {
   const [uid, setUid] = useState('')
@@ -35,6 +35,10 @@ function Welcome() {
     return () => unsub()
   }, [])
 
+  const onJoin = () => {
+    showToast('Joined')
+  }
+
   const toggleWaiting = async () => {
     if (!uid) return
     if (!gender) {
@@ -53,7 +57,7 @@ function Welcome() {
 
       // persist user waiting state
       const userRef = doc(db, 'users', uid)
-      await updateDoc(userRef, { waiting: !waiting })
+      await updateDoc(userRef, { waiting: !waiting, lastWaitClickedAt: serverTimestamp() })
 
       setWaiting((w) => !w)
       showToast(!waiting ? 'You are now waiting' : 'Ended waiting')
@@ -76,6 +80,7 @@ function Welcome() {
     <div className="container">
       <h1>Welcome</h1>
       <p>You are logged in.</p>
+      <button onClick={onJoin} style={{ marginBottom: 8 }}>Join</button>
       <button onClick={toggleWaiting}>
         {waiting ? 'End waiting' : 'Wait'}
       </button>
