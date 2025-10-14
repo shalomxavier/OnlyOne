@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { auth, db } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
 
 function Welcome() {
+  const navigate = useNavigate()
   const [uid, setUid] = useState('')
   const [gender, setGender] = useState('')
   const [waiting, setWaiting] = useState(false)
@@ -35,8 +37,70 @@ function Welcome() {
     return () => unsub()
   }, [])
 
-  const onJoin = () => {
-    showToast('Joined')
+  const onJoin = async () => {
+    if (!uid || !gender) {
+      showToast('Profile not loaded')
+      return
+    }
+
+    try {
+      // Read current stats
+      const statsRef = doc(db, 'stats', 'genderCounts')
+      const statsSnap = await getDoc(statsRef)
+      const stats = statsSnap.data() || {}
+
+      // Determine opposite gender
+      const oppositeGender = gender === 'male' ? 'female' : 'male'
+
+      // Check condition: opposite gender count > user's gender count
+      const userGenderCount = stats[gender] || 0
+      const oppositeGenderCount = stats[oppositeGender] || 0
+
+      if (oppositeGenderCount > userGenderCount) {
+        // Decrement the opposite gender count since we're matching this user
+        await setDoc(
+          statsRef,
+          { [oppositeGender]: increment(-1) },
+          { merge: true }
+        )
+
+        // Find and update the earliest waiting user of opposite gender
+        const usersRef = collection(db, 'users')
+        const q = query(
+          usersRef,
+          where('gender', '==', oppositeGender),
+          where('waiting', '==', true),
+          orderBy('lastWaitClickedAt', 'asc'),
+          limit(1)
+        )
+
+        const querySnapshot = await getDocs(q)
+        if (!querySnapshot.empty) {
+          const earliestUserDoc = querySnapshot.docs[0]
+          const earliestUserRef = doc(db, 'users', earliestUserDoc.id)
+
+          // Update the earliest waiting user: set waiting to false and joined to true
+          await updateDoc(earliestUserRef, {
+            waiting: false,
+            joined: true,
+            joinedAt: serverTimestamp()
+          })
+
+          console.log(`Matched with user ${earliestUserDoc.id}`)
+        }
+
+        // Set joined flag in current user's document
+        const userRef = doc(db, 'users', uid)
+        await updateDoc(userRef, { joined: true, joinedAt: serverTimestamp() })
+
+        navigate('/joined')
+      } else {
+        showToast(`Not enough ${oppositeGender} users waiting`)
+      }
+    } catch (e) {
+      console.error(e)
+      showToast('Failed to check availability')
+    }
   }
 
   const toggleWaiting = async () => {
