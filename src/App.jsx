@@ -4,9 +4,8 @@ import SignUp from './SignUp.jsx'
 import Login from './Login.jsx'
 import Welcome from './Welcome.jsx'
 import ForgotPassword from './ForgotPassword.jsx'
-import Loading from './Loading.jsx'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { auth, db } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
@@ -29,17 +28,15 @@ function Home() {
 function App() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const publicPaths = new Set(['/', '/login', '/signup', '/forgot'])
     const protectedPaths = new Set(['/welcome', '/joined'])
 
     const unsub = onAuthStateChanged(auth, async (user) => {
-      setIsLoading(true)
-
       if (user) {
-        if (location.pathname === '/' || location.pathname === '/login' || location.pathname === '/signup') {
+        // If on auth pages and user is verified, redirect them into the app
+        if ((location.pathname === '/login' || location.pathname === '/signup') && user.emailVerified) {
           try {
             // Check if user has joined
             const userRef = doc(db, 'users', user.uid)
@@ -58,6 +55,12 @@ function App() {
           }
         } else if (protectedPaths.has(location.pathname)) {
           try {
+            // Block unverified users from protected routes
+            if (!user.emailVerified) {
+              navigate('/', { replace: true })
+              return
+            }
+
             // Check if user should be on different protected page
             const userRef = doc(db, 'users', user.uid)
             const userSnap = await getDoc(userRef)
@@ -78,20 +81,9 @@ function App() {
           navigate('/', { replace: true })
         }
       }
-
-      // Small delay to ensure navigation completes before showing routes
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 100)
     })
-
     return () => unsub()
   }, [navigate, location.pathname])
-
-  // Show loading screen while checking auth and joined status
-  if (isLoading) {
-    return <Loading />
-  }
 
   return (
     <Routes>

@@ -57,41 +57,39 @@ function Welcome() {
       const oppositeGenderCount = stats[oppositeGender] || 0
 
       if (oppositeGenderCount > userGenderCount) {
-        // Decrement the opposite gender count since we're matching this user
+        // Set joined flag in user's document
+        const userRef = doc(db, 'users', uid)
+        await updateDoc(userRef, { joined: true, joinedAt: serverTimestamp() })
+
+        // Decrement opposite gender waiting count
         await setDoc(
           statsRef,
           { [oppositeGender]: increment(-1) },
           { merge: true }
         )
 
-        // Find and update the earliest waiting user of opposite gender
-        const usersRef = collection(db, 'users')
-        const q = query(
-          usersRef,
-          where('gender', '==', oppositeGender),
-          where('waiting', '==', true),
-          orderBy('lastWaitClickedAt', 'asc'),
-          limit(1)
-        )
-
-        const querySnapshot = await getDocs(q)
-        if (!querySnapshot.empty) {
-          const earliestUserDoc = querySnapshot.docs[0]
-          const earliestUserRef = doc(db, 'users', earliestUserDoc.id)
-
-          // Update the earliest waiting user: set waiting to false and joined to true
-          await updateDoc(earliestUserRef, {
-            waiting: false,
-            joined: true,
-            joinedAt: serverTimestamp()
-          })
-
-          console.log(`Matched with user ${earliestUserDoc.id}`)
+        // Find earliest waiting user of opposite gender and mark them joined
+        try {
+          const candidatesQ = query(
+            collection(db, 'users'),
+            where('gender', '==', oppositeGender),
+            where('waiting', '==', true),
+            orderBy('lastWaitClickedAt', 'asc'),
+            limit(1)
+          )
+          const candidatesSnap = await getDocs(candidatesQ)
+          if (!candidatesSnap.empty) {
+            const match = candidatesSnap.docs[0]
+            await updateDoc(match.ref, {
+              waiting: false,
+              joined: true,
+              matchedWith: uid,
+              joinedAt: serverTimestamp()
+            })
+          }
+        } catch (e) {
+          console.error('Failed to match opposite gender user:', e)
         }
-
-        // Set joined flag in current user's document
-        const userRef = doc(db, 'users', uid)
-        await updateDoc(userRef, { joined: true, joinedAt: serverTimestamp() })
 
         navigate('/joined')
       } else {
