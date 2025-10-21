@@ -9,6 +9,7 @@ import { useEffect } from 'react'
 import { auth, db } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
+import { App as CapApp } from '@capacitor/app'
 
 function Home() {
   const navigate = useNavigate()
@@ -84,6 +85,24 @@ function App() {
     })
     return () => unsub()
   }, [navigate, location.pathname])
+
+  useEffect(() => {
+    const rootPaths = new Set(['/', '/login', '/signup', '/forgot'])
+    const listener = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back()
+        return
+      }
+      if (!rootPaths.has(location.pathname)) {
+        navigate(-1)
+      } else {
+        CapApp.exitApp()
+      }
+    })
+    return () => {
+      listener.remove()
+    }
+  }, [location.pathname, navigate])
 
   return (
     <Routes>
