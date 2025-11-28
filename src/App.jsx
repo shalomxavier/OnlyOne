@@ -4,6 +4,7 @@ import SignUp from './SignUp.jsx'
 import Login from './Login.jsx'
 import Welcome from './Welcome.jsx'
 import ForgotPassword from './ForgotPassword.jsx'
+import Profile from './Profile.jsx'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { auth, db } from './firebase'
@@ -121,6 +122,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/welcome" element={<Welcome />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="/joined" element={<Joined />} />
       {/* Optional: catch-all could route to Home */}
       {/* <Route path="*" element={<Home />} /> */}

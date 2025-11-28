@@ -101,6 +101,10 @@ function Welcome() {
     }
   }
 
+  const onTellAboutYourself = () => {
+    navigate('/profile')
+  }
+
   const toggleWaiting = async () => {
     if (!uid) return
     if (!gender) {
@@ -145,6 +149,10 @@ function Welcome() {
       <button onClick={onJoin} style={{ marginBottom: 8 }}>Join</button>
       <button onClick={toggleWaiting}>
         {waiting ? 'End waiting' : 'Wait'}
+      </button>
+      <br />
+      <button onClick={onTellAboutYourself} style={{ marginTop: 8 }}>
+        Tell us about yourself
       </button>
       {toast && (
         <div
